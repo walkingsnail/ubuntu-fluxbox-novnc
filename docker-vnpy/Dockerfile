@@ -2,7 +2,7 @@
 # noVNC port: 6080, passwd: 888888 ($VNC_PW)
 # docker run -itd --name demo -p 6080:6080 -p 27017:27017 -p 28017:28017 image_Name
 
-FROM ubuntu
+FROM hub.c.163.com/public/ubuntu:16.04-tools
 
 ENV VNC_PW=888888 \
     DEBIAN_FRONTEND=noninteractive \
@@ -30,16 +30,15 @@ RUN echo "" > /etc/apt/sources.list \
     && echo "deb-src http://mirrors.163.com/ubuntu/ xenial-updates main multiverse restricted universe" >> /etc/apt/sources.list \
     && apt-get clean \
     && apt-get update -y && \
-    apt-get install -y supervisor bzip2 curl rsync wget git fluxbox libgl1-mesa-glx qt5-default ttf-wqy-microhei net-tools iputils-ping x11vnc python python-numpy tar gzip xvfb vim && \
-    apt-get install -y build-essential libboost-all-dev libsnappy-dev python-dev cmake mongodb python-qt4 && \
+    apt-get install -y supervisor bzip2 curl rsync wget git fluxbox libgl1-mesa-glx qt5-default ttf-wqy-microhei net-tools iputils-ping tcpdump x11vnc python python-numpy tar gzip xvfb vim htop && \
+    apt-get install -y build-essential libboost-all-dev libboost-python-dev libsnappy-dev python-dev cmake mongodb python-qt4 && \
     apt-get autoclean && apt-get autoremove && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir -p /data/db && \
-    mkdir /tmp/conda/ && \
-    systemctl enable mongodb.service && \
-    sed -i 's/bind_ip = 127.0.0.1/\#bind_ip = 127.0.0.1/g' /etc/mongodb.conf
+    mkdir /tmp/conda/
 
 COPY ./Miniconda*.sh /tmp/conda/
+COPY ./vnpy-1.7.2 /root/vnpy/vnpy-1.7.2
 
 RUN mkdir ~/.vnc && \
     x11vnc -storepasswd ${VNC_PW} ~/.vnc/passwd && \
@@ -54,13 +53,20 @@ RUN mkdir ~/.vnc && \
     ln -s /opt/conda/bin/pip /usr/local/bin/pip
 
 COPY light-grey.png /usr/share/images/fluxbox/ubuntu-light.png
-
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 RUN sed -i -- "s/ps -p/ps -o pid | grep/g" /root/noVNC/utils/launch.sh
 
-WORKDIR /vnpy
+WORKDIR /root/vnpy/vnpy-1.7.2
 
-EXPOSE 6080 27017
+# 后述指令建议手工执行
+RUN pip install -r requirements.txt
+RUN conda install pyqt=4.11
+RUN conda install -c quantopian ta-lib=0.4.9
+RUN pip install qtpy zmq
+RUN bash install.sh
+RUN cp  /root/vnpy/vnpy-1.7.2/vnpy/api/ctp/build/lib/vnctp*.so /opt/conda/lib/python2.7/site-packages/vnpy/api/ctp/
+    
+EXPOSE 6080 5900 27017 28017
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
