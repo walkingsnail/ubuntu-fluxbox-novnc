@@ -1,0 +1,29 @@
+# ubuntu with Miniconda and noVNC, mongodb
+# noVNC port: 6080, passwd: 888888 ($VNC_PW)
+# docker run -itd --name demo -p 6080:6080 -p 27017:27017 -p 28017:28017 image_Name
+
+FROM vnpy:1.7.2
+
+RUN pip install vnpy --upgrade && \
+    pip install tushare lxml bs4 scipy Cython pyqtgraph snappy
+
+COPY ./vnpy-1.8-docker-share /root/vnpy/vnpy-1.8
+
+WORKDIR /root/vnpy/vnpy-1.8
+
+# 后述指令建议手工执行
+RUN pip install -r requirements.txt
+RUN bash install.sh
+
+WORKDIR /root/vnpy/vnpy-1.8/vnpy/pricing/bsCython
+
+RUN python setup.py build_ext --inplace && \
+    cp  /root/vnpy/vnpy-1.8/vnpy/api/ctp/build/lib/vnctp*.so /opt/conda/lib/python2.7/site-packages/vnpy/api/ctp/ && \
+    cp /root/vnpy/vnpy-1.8/vnpy/pricing/bsCython/*.so /opt/conda/lib/python2.7/site-packages/vnpy/pricing/
+
+# modify some .py files in /opt/conda/lib/python2.7/site-packages/vnpy/trader/app/optionMaster
+# QtCore.pyqtSignal() --> QtCore.Signal()
+
+WORKDIR /root/vnpy/vnpy-1.8
+
+RUN rm -R *
